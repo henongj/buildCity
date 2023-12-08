@@ -3,6 +3,8 @@ using UnityEngine.InputSystem;
 
 public class CameraController : MonoBehaviour
 {
+    Transform CameraRoot;
+
     private InputAction RightClick; // Camera Rotation
     private InputAction LeftClick; // For Selecting, Raycasting
     private InputAction MiddleClick;
@@ -12,16 +14,29 @@ public class CameraController : MonoBehaviour
     private InputAction KeyboardMove; // For Camera Movement and axis
 
     public float moveSpeed = 5f;
-    public float rotationSpeed = 2f;
-    public float scrollSpeed = 5f;
+    public float rotationSpeed = 0.5f;
+    public float scrollSpeed = 0.5f;
 
     private bool isLeftClicking = false;
     private bool isRightClicking = false;
     private Vector2 moveInput;
     private float scrollInput;
 
+    private bool[] isKeyPressed = new bool[6]; // 0: Q, 1: W, 2: E, 3: A, 4: S, 5: D
+    private float xSpeed = 0f;
+    private float zSpeed = 0f;
+    private float ySpeed = 0f;
+
+    private void Update()
+    {
+        // 키보드 입력이 계속해서 이동을 유지하도록 수정
+        keyEventHandler();
+    }
+
     private void Awake()
     {
+        CameraRoot = transform.parent;
+
         // InputAction 이벤트를 생성 및 바인딩
         GenerateInputAction();
 
@@ -40,7 +55,10 @@ public class CameraController : MonoBehaviour
         MiddleClick = new InputAction("MiddleClick", InputActionType.Button, "<Mouse>/middleButton");
         Scroll = new InputAction("Scroll", InputActionType.Value, "<Mouse>/scroll/y");
         CursorMove = new InputAction("CursorMove", InputActionType.Value, "<Mouse>/position"); //
-        KeyboardMove = new InputAction("KeyboardMove", InputActionType.Value, "<Keyboard>/position"); //
+
+        // Keyboard Input W A S D Q E
+        KeyboardMove = new InputAction("KeyboardMove", InputActionType.Value);
+        
     }
 
     private void BindEvent()
@@ -57,7 +75,17 @@ public class CameraController : MonoBehaviour
         Scroll.performed += ctx => OnScroll(ctx);
         CursorMove.performed += ctx => OnCursorMove(ctx);
 
+        KeyboardMove.AddCompositeBinding("2DVector")
+            .With("Up", "<Keyboard>/w")
+            .With("Down", "<Keyboard>/s")
+            .With("Left", "<Keyboard>/a")
+            .With("Right", "<Keyboard>/d")
+            .With("Up", "<Keyboard>/q")
+            .With("Down", "<Keyboard>/e");
+        
         KeyboardMove.performed += ctx => onMoveKeyboard(ctx);
+        KeyboardMove.canceled += ctx => onMoveKeyboardCanceled(ctx);
+
     }
 
     private void EventEnable()
@@ -68,6 +96,7 @@ public class CameraController : MonoBehaviour
         MiddleClick.Enable();
         Scroll.Enable();
         CursorMove.Enable();
+        KeyboardMove.Enable();
     }
 
     private void OnDisable()
@@ -93,51 +122,108 @@ public class CameraController : MonoBehaviour
         Zoom(scrollValue);
     }
 
+    private void onMoveKeyboardCanceled(InputAction.CallbackContext context)
+    {
+        // console
+        Debug.Log("버튼 캔슬");
+        Debug.Log("버튼 캔슬");
+        Debug.Log("버튼 캔슬");
+
+        Vector2 input = context.ReadValue<Vector2>();
+
+        // q w e a s d
+        if (isKeyPressed[0])
+            isKeyPressed[0] = false;
+        if (isKeyPressed[1])
+            isKeyPressed[1] = false;
+        if (isKeyPressed[2])
+            isKeyPressed[2] = false;
+        if (isKeyPressed[3])
+            isKeyPressed[3] = false;
+        if (isKeyPressed[4])
+            isKeyPressed[4] = false;
+        if (isKeyPressed[5])
+            isKeyPressed[5] = false;
+
+        xSpeed = 0f;
+        ySpeed = 0f;
+        zSpeed = 0f;
+    }
+
     private void onMoveKeyboard(InputAction.CallbackContext context)
     {
-        float horizontal = 0f;
-        float vertical = 0f;
+        Vector2 input = context.ReadValue<Vector2>();
 
-        // 앞뒤
-        if (Keyboard.current.wKey.isPressed)
-            vertical = 1f;
-        else if (Keyboard.current.sKey.isPressed)
-            vertical = -1f;
+        // console log values
+        Debug.Log("Keyboard 버튼 누름: ");
+        Debug.Log("Keyboard 버튼 누름: ");
+        Debug.Log("Keyboard 버튼 누름: ");
 
-        // 좌우
-        if (Keyboard.current.aKey.isPressed)
-            horizontal = -1f;
-        else if (Keyboard.current.dKey.isPressed)
-            horizontal = 1f;
-
-        // 하강
+        // q w e a s d
         if (Keyboard.current.qKey.isPressed)
-        {
-            transform.Translate(Vector3.down * moveSpeed * Time.deltaTime, Space.Self);
-        }
-        // 상승
-        else if (Keyboard.current.eKey.isPressed)
-        {
-            transform.Translate(Vector3.up * moveSpeed * Time.deltaTime, Space.Self);
-        }
+            isKeyPressed[0] = true;
+        if(Keyboard.current.wKey.isPressed)
+            isKeyPressed[1] = true;
+        if(Keyboard.current.eKey.isPressed)
+            isKeyPressed[2] = true;
+        if(Keyboard.current.aKey.isPressed)
+            isKeyPressed[3] = true;
+        if(Keyboard.current.sKey.isPressed)
+            isKeyPressed[4] = true;
+        if(Keyboard.current.dKey.isPressed)
+            isKeyPressed[5] = true;
+
+        xSpeed = 0f;
+        ySpeed = 0f;
+        zSpeed = 0f;
+    }
+    private void keyEventHandler()
+    {
+
+        // W S (Z 축)
+        if (isKeyPressed[1])
+            zSpeed = 1f;
+        else if (isKeyPressed[4])
+            zSpeed = -1f;
+
+        // 좌우 (X 축)
+        if (isKeyPressed[3])
+            xSpeed = -1f;
+        else if (isKeyPressed[5])
+            xSpeed = 1f;
+
+        // 하강/상승 (Y 축)
+        if (isKeyPressed[0])
+            ySpeed = -1f;
+        else if (isKeyPressed[2])
+            ySpeed = 1f;
 
         // 이동
-        Vector3 moveDirection = new Vector3(horizontal, 0f, vertical).normalized;
-        Vector3 moveAmount = moveDirection * moveSpeed * Time.deltaTime;
-        transform.Translate(moveAmount, Space.Self);
+        Vector3 moveDirection = new Vector3(xSpeed, ySpeed, zSpeed).normalized;
+        Vector3 moveAmount = moveDirection * moveSpeed;
+
+        // log
+        if (moveAmount != Vector3.zero)
+            Debug.Log("Keyboard Move: " + moveAmount);
+
+        //
+        CameraRoot.Translate(moveAmount * Time.deltaTime, Space.Self);
     }
 
     private void Rotate()
     {
         if (isRightClicking)
         {
-            float mouseX = moveInput.x;
-            float mouseY = moveInput.y;
+            float mouseX = Mouse.current.delta.x.ReadValue();
+            float mouseY = Mouse.current.delta.y.ReadValue();
+            float rotationAmountX = mouseX * rotationSpeed;
+            float rotationAmountY = -mouseY * rotationSpeed * 0.5f;
+            // console log values
+            Debug.Log("Mouse X: " + mouseX + " Mouse Y: " + mouseY + " Rotation X: " + rotationAmountX + " Rotation Y: " + rotationAmountY);
 
-            float rotationAmountX = -mouseY * rotationSpeed;
-            float rotationAmountY = mouseX * rotationSpeed;
-
-            transform.Rotate(rotationAmountX, rotationAmountY, 0f, Space.Self);
+            // 카메라의 로컬 좌표를 회전시키는 대신, 월드 좌표를 기준으로 회전
+            CameraRoot.Rotate(Vector3.up, rotationAmountX, Space.World);
+            transform.Rotate(Vector3.right, rotationAmountY, Space.Self);
         }
     }
 
