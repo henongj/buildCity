@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -12,7 +13,7 @@ public class CameraController : MonoBehaviour
     private InputAction CursorMove; // For Camera Movement and axis
 
     private InputAction KeyboardMove; // For Camera Movement and axis
-
+    
     public float moveSpeed = 5f;
     public float rotationSpeed = 0.5f;
     public float scrollSpeed = 0.5f;
@@ -26,6 +27,10 @@ public class CameraController : MonoBehaviour
     private float xSpeed = 0f;
     private float zSpeed = 0f;
     private float ySpeed = 0f;
+
+    // max zoom (height) : 10, min zoom (height) : 1000
+    private float maxHeight = 1000f;
+    private float minHeight = 10f;
 
     private void Update()
     {
@@ -75,14 +80,15 @@ public class CameraController : MonoBehaviour
         Scroll.performed += ctx => OnScroll(ctx);
         CursorMove.performed += ctx => OnCursorMove(ctx);
 
-        KeyboardMove.AddCompositeBinding("2DVector")
-            .With("Up", "<Keyboard>/w")
-            .With("Down", "<Keyboard>/s")
+
+        KeyboardMove.AddCompositeBinding("3DVector")
+            .With("Forward", "<Keyboard>/w")
+            .With("Backward", "<Keyboard>/s")
             .With("Left", "<Keyboard>/a")
             .With("Right", "<Keyboard>/d")
             .With("Up", "<Keyboard>/q")
             .With("Down", "<Keyboard>/e");
-        
+
         KeyboardMove.performed += ctx => onMoveKeyboard(ctx);
         KeyboardMove.canceled += ctx => onMoveKeyboardCanceled(ctx);
 
@@ -115,22 +121,39 @@ public class CameraController : MonoBehaviour
         Rotate();
     }
 
+    public bool isRightCameraPosition(float cameraWorldSpaceYPosition)
+    {
+        if(cameraWorldSpaceYPosition < maxHeight && cameraWorldSpaceYPosition > minHeight)
+        {
+            return true;
+        }
+
+        Debug.Log("too high or log : " + cameraWorldSpaceYPosition);
+        return false;
+    }
     private void OnZoom(InputAction.CallbackContext context)
     {
         float scrollValue = context.ReadValue<float>();
-        Debug.Log("Scroll Input: " + scrollValue);
-        Zoom(scrollValue);
+        // 절댓값 사용
+        float zoomAmount = (scrollValue * scrollSpeed);
+
+        //Debug.Log("Scroll Input: " + scrollValue);
+
+        // 적절한 위치가 아니면 줌을 하지 않음
+        if(!isRightCameraPosition(transform.position.y + -1f*zoomAmount) || !isRightCameraPosition(transform.position.y - zoomAmount))
+        {
+            return;
+        }
+        Zoom(zoomAmount);
     }
 
     private void onMoveKeyboardCanceled(InputAction.CallbackContext context)
     {
         // console
-        Debug.Log("버튼 캔슬");
-        Debug.Log("버튼 캔슬");
-        Debug.Log("버튼 캔슬");
+        // Debug.Log("버튼 캔슬");
 
-        Vector2 input = context.ReadValue<Vector2>();
-
+        Vector3 input = context.ReadValue<Vector3>();
+        
         // q w e a s d
         if (isKeyPressed[0])
             isKeyPressed[0] = false;
@@ -152,34 +175,40 @@ public class CameraController : MonoBehaviour
 
     private void onMoveKeyboard(InputAction.CallbackContext context)
     {
-        Vector2 input = context.ReadValue<Vector2>();
+        Vector3 input = context.ReadValue<Vector3>();
 
-        // console log values
-        Debug.Log("Keyboard 버튼 누름: ");
-        Debug.Log("Keyboard 버튼 누름: ");
-        Debug.Log("Keyboard 버튼 누름: ");
+        // console
+        Debug.Log("버튼 입력 : " + input);
+
+        // key event handler is called at update function
+        // keyEventHandler();
 
         // q w e a s d
         if (Keyboard.current.qKey.isPressed)
             isKeyPressed[0] = true;
         else
             isKeyPressed[0] = false;
+
         if(Keyboard.current.wKey.isPressed)
             isKeyPressed[1] = true;
         else
             isKeyPressed[1] = false;
+
         if(Keyboard.current.eKey.isPressed)
             isKeyPressed[2] = true;
         else
             isKeyPressed[2] = false;
+
         if(Keyboard.current.aKey.isPressed)
             isKeyPressed[3] = true;
         else
             isKeyPressed[3] = false;
+
         if(Keyboard.current.sKey.isPressed)
             isKeyPressed[4] = true;
         else
             isKeyPressed[4] = false;
+
         if(Keyboard.current.dKey.isPressed)
             isKeyPressed[5] = true;
         else
@@ -191,6 +220,8 @@ public class CameraController : MonoBehaviour
     }
     private void keyEventHandler()
     {
+        // log foreach isKeyPressed
+        //Debug.Log("isKeyPressed : " + isKeyPressed[0] + " " + isKeyPressed[1] + " " + isKeyPressed[2] + " " + isKeyPressed[3] + " " + isKeyPressed[4] + " " + isKeyPressed[5]);
 
         // W S (Z 축)
         if (isKeyPressed[1])
@@ -206,17 +237,41 @@ public class CameraController : MonoBehaviour
 
         // 하강/상승 (Y 축)
         if (isKeyPressed[0])
-            ySpeed = -1f;
-        else if (isKeyPressed[2])
+        {
+            // 최소 높이를 넘게 될 경우 하강하지 않음
+            // 루트의 월드좌표 + 카메라의 로컬좌표 + 이동량 = 카메라의 월드 좌표
+            float cameraWorldSpaceYPosition = CameraRoot.position.y + transform.localPosition.y + -1f;
+            // log all values
+            //Debug.Log("values : " + transform.position.y + " " + CameraRoot.position.y + " " + cameraWorldSpaceYPosition);
+
+            if (isRightCameraPosition(cameraWorldSpaceYPosition))
+                ySpeed = -1f;
+            else
+            {
+                xSpeed = 0f;
+            }
+        }
+        if (isKeyPressed[2])
+        {
+            // 최대 높이를 넘게 될 경우 상승하지 않음
+            // 루트 + 카메라 + 이동량 = 카메라의 월드 좌표
+            float cameraWorldSpaceYPosition = transform.localPosition.y + CameraRoot.position.y;
+
+            //Debug.Log("values : " + transform.position.y + " " + CameraRoot.position.y + " " + cameraWorldSpaceYPosition);
+
+            if (isRightCameraPosition(cameraWorldSpaceYPosition))
+                ySpeed = 1f;
+            else
+            {
+                xSpeed = 0f;
+            }
+
             ySpeed = 1f;
+        }
 
         // 이동
         Vector3 moveDirection = new Vector3(xSpeed, ySpeed, zSpeed).normalized;
         Vector3 moveAmount = moveDirection * moveSpeed;
-
-        // log
-        if (moveAmount != Vector3.zero)
-            Debug.Log("Keyboard Move: " + moveAmount);
 
         //
         CameraRoot.Translate(moveAmount * Time.deltaTime, Space.Self);
@@ -239,9 +294,8 @@ public class CameraController : MonoBehaviour
         }
     }
 
-    private void Zoom(float scrollAmount)
+    private void Zoom(float zoomAmount)
     {
-        float zoomAmount = scrollAmount * scrollSpeed;
         Vector3 zoom = new Vector3(0f, 0f, zoomAmount);
 
         transform.Translate(zoom, Space.Self);
@@ -310,7 +364,7 @@ public class CameraController : MonoBehaviour
         }
 
         // console mouse position
-        Debug.Log("Mouse Position: " + input);
+       // Debug.Log("Mouse Position: " + input);
     }
 
     private void OnLeftDrag()
