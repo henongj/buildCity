@@ -162,16 +162,28 @@ public class CameraController : MonoBehaviour
         // q w e a s d
         if (Keyboard.current.qKey.isPressed)
             isKeyPressed[0] = true;
+        else
+            isKeyPressed[0] = false;
         if(Keyboard.current.wKey.isPressed)
             isKeyPressed[1] = true;
+        else
+            isKeyPressed[1] = false;
         if(Keyboard.current.eKey.isPressed)
             isKeyPressed[2] = true;
+        else
+            isKeyPressed[2] = false;
         if(Keyboard.current.aKey.isPressed)
             isKeyPressed[3] = true;
+        else
+            isKeyPressed[3] = false;
         if(Keyboard.current.sKey.isPressed)
             isKeyPressed[4] = true;
+        else
+            isKeyPressed[4] = false;
         if(Keyboard.current.dKey.isPressed)
             isKeyPressed[5] = true;
+        else
+            isKeyPressed[5] = false;
 
         xSpeed = 0f;
         ySpeed = 0f;
