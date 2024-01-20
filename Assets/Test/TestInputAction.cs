@@ -60,7 +60,6 @@ public class TestInputAction : MonoBehaviour
         isLeftClicking = true;
         Debug.Log("Left Click");
     }
-
     // 좌클릭 캔슬 이벤트 핸들러
     private void OnLeftClickCanceled()
     {

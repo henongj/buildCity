@@ -23,7 +23,8 @@ public class CameraController : MonoBehaviour
     private Vector2 moveInput;
     private float scrollInput;
 
-    private bool[] isKeyPressed = new bool[6]; // 0: Q, 1: W, 2: E, 3: A, 4: S, 5: D
+    // 0: Q, 1: W, 2: E, 3: A, 4: S, 5: D
+    private bool[] isKeyPressed = new bool[6]; 
     private float xSpeed = 0f;
     private float zSpeed = 0f;
     private float ySpeed = 0f;
@@ -35,7 +36,7 @@ public class CameraController : MonoBehaviour
     private void Update()
     {
         // 키보드 입력이 계속해서 이동을 유지하도록 수정
-        keyEventHandler();
+        // keyEventHandler();
     }
 
     private void Awake()
@@ -54,6 +55,7 @@ public class CameraController : MonoBehaviour
 
     private void GenerateInputAction()
     {
+        Debug.Log("Generate Input Action");
         // InputAction 이벤트를 생성 및 바인딩
         RightClick = new InputAction("LeftClick", InputActionType.Button, "<Mouse>/rightButton"); //
         LeftClick = new InputAction("RightClick", InputActionType.Button, "<Mouse>/leftButton");
@@ -62,12 +64,13 @@ public class CameraController : MonoBehaviour
         CursorMove = new InputAction("CursorMove", InputActionType.Value, "<Mouse>/position"); //
 
         // Keyboard Input W A S D Q E
-        KeyboardMove = new InputAction("KeyboardMove", InputActionType.Value);
-        
+        KeyboardMove = new InputAction("KeyboardMove", InputActionType.PassThrough);
+
     }
 
     private void BindEvent()
     {
+        Debug.Log("Bind Event");
         RightClick.performed += ctx => OnRightClick(ctx);
         RightClick.canceled += ctx => OnRightClickCanceled();
 
@@ -80,7 +83,6 @@ public class CameraController : MonoBehaviour
         Scroll.performed += ctx => OnScroll(ctx);
         CursorMove.performed += ctx => OnCursorMove(ctx);
 
-
         KeyboardMove.AddCompositeBinding("3DVector")
             .With("Forward", "<Keyboard>/w")
             .With("Backward", "<Keyboard>/s")
@@ -89,13 +91,13 @@ public class CameraController : MonoBehaviour
             .With("Up", "<Keyboard>/q")
             .With("Down", "<Keyboard>/e");
 
-        KeyboardMove.performed += ctx => onMoveKeyboard(ctx);
+        KeyboardMove.started += ctx => onMoveKeyboard(ctx);
         KeyboardMove.canceled += ctx => onMoveKeyboardCanceled(ctx);
-
     }
 
     private void EventEnable()
     {
+        Debug.Log("Event Enable");  
         // InputAction 이벤트를 활성화
         RightClick.Enable();
         LeftClick.Enable();
@@ -217,7 +219,70 @@ public class CameraController : MonoBehaviour
         xSpeed = 0f;
         ySpeed = 0f;
         zSpeed = 0f;
+
+        MoveCamera();
     }
+
+    private void MoveCamera()
+    {
+        // log foreach isKeyPressed
+        Debug.Log("isKeyPressed : " + isKeyPressed[0] + " " + isKeyPressed[1] + " " + isKeyPressed[2] + " " + isKeyPressed[3] + " " + isKeyPressed[4] + " " + isKeyPressed[5]);
+
+        // W S (Z 축)
+        if (isKeyPressed[1])
+            zSpeed = 1f;
+        else if (isKeyPressed[4])
+            zSpeed = -1f;
+
+        // A D 좌우 (X 축)
+        if (isKeyPressed[3])
+            xSpeed = -1f;
+        else if (isKeyPressed[5])
+            xSpeed = 1f;
+
+        // 하강/상승 (Y 축)
+        if (isKeyPressed[0])
+        {
+            // 최소 높이를 넘게 될 경우 하강하지 않음
+            // 루트의 월드좌표 + 카메라의 로컬좌표 + 이동량 = 카메라의 월드 좌표
+            float cameraWorldSpaceYPosition = CameraRoot.position.y + transform.localPosition.y + -1f;
+
+            if (isRightCameraPosition(cameraWorldSpaceYPosition))
+                ySpeed = -1f;
+            else
+            {
+                xSpeed = 0f;
+            }
+
+            // ySpeed를 특정 범위 내로 제한하여 지정된 높이 이하로 내려가지 못하도록 함
+            ySpeed = Mathf.Clamp(ySpeed, -1f, 0f);
+        }
+        if (isKeyPressed[2])
+        {
+            // 최대 높이를 넘게 될 경우 상승하지 않음
+            // 루트 + 카메라 + 이동량 = 카메라의 월드 좌표
+            float cameraWorldSpaceYPosition = transform.localPosition.y + CameraRoot.position.y;
+
+            if (isRightCameraPosition(cameraWorldSpaceYPosition))
+                ySpeed = 1f;
+            else
+            {
+                xSpeed = 0f;
+            }
+
+            // ySpeed를 특정 범위 내로 제한하여 지정된 높이 이상으로 올라가지 못하도록 함
+            ySpeed = Mathf.Clamp(ySpeed, 0f, 1f);
+        }
+
+        // 이동
+        Vector3 moveDirection = new Vector3(xSpeed, ySpeed, zSpeed).normalized;
+        Vector3 moveAmount = moveDirection * moveSpeed * Time.deltaTime;
+        //Debug.Log("moveAmount : " + moveAmount);
+        CameraRoot.Translate(moveAmount, Space.Self);
+        // camera root 위치 
+        //Debug.Log("CameraRoot Position : " + CameraRoot.position);
+    }
+
     private void keyEventHandler()
     {
         // log foreach isKeyPressed
@@ -296,9 +361,10 @@ public class CameraController : MonoBehaviour
 
     private void Zoom(float zoomAmount)
     {
-        Vector3 zoom = new Vector3(0f, 0f, zoomAmount);
+        Vector3 cameraForward = transform.forward;
+        Vector3 zoom = cameraForward * zoomAmount;
 
-        transform.Translate(zoom, Space.Self);
+        CameraRoot.Translate(zoom, Space.Self);
     }
 
 
